@@ -5,7 +5,7 @@ import { BulkCustomerPayload, BulkOrderPayload, CustomerPayload, ErrorPayload, O
 
 export class DataConsumerService {
   private isRunning = false
-  private processors = new Map<string, (data:any) => Promise<void>>()
+  public processors = new Map<string, (data:any) => Promise<void>>()
 
   constructor() {
     // Register all processors
