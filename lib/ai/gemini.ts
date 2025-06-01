@@ -1,4 +1,4 @@
-import { SpentRule } from "@/types";
+import { SegmentRule } from "@/types";
 import { GoogleGenAI } from "@google/genai";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -7,7 +7,7 @@ const genAI = new GoogleGenAI({ apiKey });
 export class GeminiService {
   public model = "gemini-2.0-flash";
 
-  async naturalLanguageToRules(query: string): Promise<SpentRule[]> {
+  async naturalLanguageToRules(query: string): Promise<SegmentRule[]> {
     const prompt = `
     Convert this natural language query into CRM segment rules.
     Query: "${query}"

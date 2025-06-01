@@ -79,9 +79,3 @@ export interface ErrorPayload {
   timestamp: string;
 }
 
-export interface SpentRule {
-  field: "totalSpent";
-  operator: ">";
-  value: 1000;
-  logic: "AND";
-}
