@@ -19,14 +19,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const rateLimitResponse = await rateLimitStandard(request, {})
+    const rateLimitResponse = await rateLimitStandard(request)
     if (rateLimitResponse) return rateLimitResponse
 
     const body = await request.json()
     const isBulk = Array.isArray(body.orders)
     
     if (isBulk) {
-      const bulkRateLimitResponse = await rateLimitBulk(request, {})
+      const bulkRateLimitResponse = await rateLimitBulk(request)
       if (bulkRateLimitResponse) return bulkRateLimitResponse
       
       const validatedData = orderBulkSchema.parse(body)
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         REDIS_CHANNELS.ORDER_BULK_INGESTION,
         {
           orders: validatedData.orders,
-          userId: session.user.id,
+          userId: (session.user as { id?: string })?.id,
           source: 'api',
           batchId: crypto.randomUUID(),
         }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         REDIS_CHANNELS.ORDER_INGESTION,
         {
           ...validatedData,
-          userId: session.user.id,
+          userId: (session.user as { id?: string })?.id,
           source: 'api',
           customerName: customer.name,
         }
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const rateLimitResponse = await rateLimitStandard(request, {})
+    const rateLimitResponse = await rateLimitStandard(request)
     if (rateLimitResponse) return rateLimitResponse
 
     const { searchParams } = new URL(request.url)

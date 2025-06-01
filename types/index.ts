@@ -48,3 +48,34 @@ export interface Customer {
     message?: string;
     errors?: unknown[];
   }
+
+  export interface CustomerPayload {
+    name: string
+    email: string
+    totalSpent?: number
+    visits?: number
+    lastVisit?: string
+  }
+
+
+  export interface BulkCustomerPayload {
+    customers: CustomerPayload[],
+    batchId?: string
+  }
+  
+  export interface OrderPayload {
+    customerId: string
+    amount: number
+  }
+  
+  export interface BulkOrderPayload {
+    orders: OrderPayload[]
+    batchId?: string
+  }
+  
+  export interface ErrorPayload {
+    channel?: string
+    message: string
+    error: string
+    timestamp: string
+  }

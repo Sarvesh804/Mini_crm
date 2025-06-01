@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply rate limiting
-    const rateLimitResponse = await rateLimitStandard(request, {})
+    const rateLimitResponse = await rateLimitStandard(request)
     if (rateLimitResponse) return rateLimitResponse
 
     const body = await request.json()
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     
     if (isBulk) {
       // Apply bulk rate limiting
-      const bulkRateLimitResponse = await rateLimitBulk(request, {})
+      const bulkRateLimitResponse = await rateLimitBulk(request)
       if (bulkRateLimitResponse) return bulkRateLimitResponse
       
       // Validate bulk data
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply rate limiting
-    const rateLimitResponse = await rateLimitStandard(request, {})
+    const rateLimitResponse = await rateLimitStandard(request)
     if (rateLimitResponse) return rateLimitResponse
 
     const { searchParams } = new URL(request.url)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RedisService } from '@/lib/redis'
 import redis from '@/lib/redis'
+import { REDIS_KEYS } from '@/lib/redis'
 
 interface RateLimitConfig {
   requests: number
@@ -11,19 +12,18 @@ interface RateLimitConfig {
 export function createRateLimit(config: RateLimitConfig) {
   return async function rateLimit(
     request: NextRequest,
-    context: { params?: any }
   ): Promise<NextResponse | null> {
     try {
+
       // Get client identifier (IP or user ID)
-      const clientId = request.headers.get('x-forwarded-for') || 
-                      request.headers.get('x-real-ip') || 
-                      request.ip || 
-                      'anonymous'
+      const forwarded = request.headers.get('x-forwarded-for')
+      const clientId = forwarded?.split(',')[0]?.trim() || 'anonymous' 
       
-      const key = `${process.env.REDIS_KEYS?.RATE_LIMIT_PREFIX || 'rate_limit:'}${clientId}:${request.nextUrl.pathname}`
+      const key = `${REDIS_KEYS?.RATE_LIMIT_PREFIX || 'rate_limit:'}${clientId}:${request.nextUrl.pathname}`
       
       // Get current count
-      const current = await RedisService.cacheGet(key) || 0
+      const rawCurrent = await RedisService.cacheGet(key)
+      const current = typeof rawCurrent === 'number' ? rawCurrent : Number(rawCurrent) || 0
       
       if (current >= config.requests) {
         return NextResponse.json(
