@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { VendorAPIService } from '@/lib/services/vendor-api'
-import { DeliveryReceiptHandler } from '@/lib/services/delivery-receipt-handler'
+import { VendorAPIService } from '@/services/vendor-api'
+import { DeliveryReceiptHandler } from '@/services/delivery-receipt-handler'
 
 export async function GET(request: NextRequest) {
   try {
