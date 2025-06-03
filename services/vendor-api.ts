@@ -1,4 +1,4 @@
-import { RedisService, REDIS_CHANNELS } from '@/lib/redis'
+import { RedisService, REDIS_CHANNELS } from '../lib/redis'
 
 export interface DeliveryResult {
   messageId: string
@@ -18,7 +18,7 @@ export interface VendorResponse {
   failureReason?: string
 }
 
-export interface vendors {
+export interface VendorStats {
   name: string
   successRate: number
   avgDelay: number
@@ -27,8 +27,16 @@ export interface vendors {
   lastUsed: string
 }
 
+interface VendorConfig {
+  name: string
+  successRate: number
+  avgDelay: number
+  costPerMessage: number
+  commonErrors: string[]
+}
+
 export class VendorAPIService {
-  private static vendors = [
+  private static vendors: VendorConfig[] = [
     { 
       name: 'TwilioSim', 
       successRate: 0.95, 
@@ -131,7 +139,7 @@ export class VendorAPIService {
     return results
   }
 
-  private static async simulateWebhookDelivery(result: DeliveryResult) {
+  private static async simulateWebhookDelivery(result: DeliveryResult): Promise<void> {
     try {
       // Publish delivery receipt to Redis
       await RedisService.publishMessage(REDIS_CHANNELS.DELIVERY_RECEIPT, {
@@ -151,13 +159,13 @@ export class VendorAPIService {
     }
   }
 
-  static async getVendorStats(): Promise<vendors[]> {
+  static async getVendorStats(): Promise<VendorStats[]> {
     return this.vendors.map(vendor => ({
       name: vendor.name,
       successRate: vendor.successRate,
       avgDelay: vendor.avgDelay,
       costPerMessage: vendor.costPerMessage,
-      status: 'ACTIVE',
+      status: 'ACTIVE' as const,
       lastUsed: new Date(Date.now() - Math.random() * 86400000).toISOString(),
     }))
   }
@@ -171,5 +179,27 @@ export class VendorAPIService {
     
     // 5% chance of connection failure
     return Math.random() > 0.05
+  }
+
+  static getVendorByName(name: string): VendorConfig | undefined {
+    return this.vendors.find(v => v.name === name)
+  }
+
+  static getAllVendorNames(): string[] {
+    return this.vendors.map(v => v.name)
+  }
+
+  static async getVendorHealthStatus(): Promise<Record<string, boolean>> {
+    const status: Record<string, boolean> = {}
+    
+    for (const vendor of this.vendors) {
+      try {
+        status[vendor.name] = await this.testVendorConnection(vendor.name)
+      } catch (error) {
+        status[vendor.name] = false
+      }
+    }
+    
+    return status
   }
 }

@@ -1,0 +1,17 @@
+{
+    "name": "crm-services",
+    "version": "1.0.0",
+    "type": "commonjs",
+    "scripts": {
+      "start": "ts-node consumer-main.ts",
+      "start:esm": "ts-node --esm consumer-main.ts",
+      "build": "tsc",
+      "dev": "tsx consumer-main.ts",
+      "dev:watch": "tsx --watch consumer-main.ts"
+    },
+    "dependencies": {
+      "ts-node": "^10.9.1",
+      "typescript": "^5.0.0",
+      "tsx": "^4.0.0"
+    }
+  }

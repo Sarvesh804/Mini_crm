@@ -106,7 +106,7 @@ export class DeliveryReceiptHandler {
             completedAt: new Date(),
           },
           include: {
-            logs: {
+            campaignLogs: {
               select: {
                 status: true,
                 cost: true,
@@ -118,7 +118,7 @@ export class DeliveryReceiptHandler {
         // Calculate final stats
         const sent = stats.SENT || 0
         const failed = stats.FAILED || 0
-        const totalCost = campaign.logs.reduce((sum, log) => sum + (log.cost || 0), 0)
+        const totalCost = campaign.campaignLogs.reduce((sum, log) => sum + (log.cost ? Number(log.cost) : 0), 0)
         const successRate = total > 0 ? ((sent / total) * 100).toFixed(1) : '0'
         
         console.log(`🎉 Campaign ${campaignId} completed - Sent: ${sent}, Failed: ${failed}, Success Rate: ${successRate}%, Cost: $${totalCost.toFixed(2)}`)
