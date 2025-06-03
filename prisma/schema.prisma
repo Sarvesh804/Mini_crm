@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
 }
 
 datasource db {
@@ -14,57 +7,54 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String     @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  role          String     @default("USER")
+  accounts      Account[]
+  campaigns     Campaign[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
 model Account {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
 }
-
 
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
-
-
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("USER")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  accounts      Account[]
-  sessions      Session[]
-  campaigns     Campaign[]
-
-  @@map("users")
-}
-
-
 
 model VerificationToken {
   identifier String
@@ -75,74 +65,102 @@ model VerificationToken {
   @@map("verificationtokens")
 }
 
-
-
-
 model Customer {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  totalSpent  Float    @default(0)
-  visits      Int      @default(0)
-  lastVisit   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  orders       Order[]
-  campaignLogs CommunicationLog[]
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  totalSpent        Float              @default(0)
+  visits            Int                @default(0)
+  lastVisit         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  campaignLogs      CampaignLog[]
+  communicationLogs CommunicationLog[]
+  orders            Order[]
 
+  @@index([email])
+  @@index([totalSpent])
+  @@index([visits])
+  @@index([lastVisit])
   @@map("customers")
 }
-
-
-
 
 model Order {
   id         String   @id @default(cuid())
   customerId String
   amount     Float
   createdAt  DateTime @default(now())
-  
+  updatedAt  DateTime @updatedAt
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  @@index([customerId])
+  @@index([amount])
+  @@index([createdAt])
   @@map("orders")
 }
 
-
-
-
 model Campaign {
-  id           String   @id @default(cuid())
-  name         String
-  rules        Json
-  message      String
-  audienceSize Int      @default(0)
-  status       String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED, PAUSED
-  createdBy    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  user         User     @relation(fields: [createdBy], references: [id])
-  logs         CommunicationLog[]
+  id                String             @id @default(cuid())
+  name              String
+  rules             Json
+  message           String
+  audienceSize      Int                @default(0)
+  status            String             @default("ACTIVE")
+  createdBy         String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  completedAt       DateTime?
+  campaignLogs      CampaignLog[]
+  user              User               @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  communicationLogs CommunicationLog[]
 
+  @@index([createdBy])
+  @@index([status])
+  @@index([createdAt])
   @@map("campaigns")
 }
 
-
-
-
 model CommunicationLog {
-  id         String   @id @default(cuid())
-  campaignId String
+  id         String    @id @default(cuid())
   customerId String
-  status     String   @default("PENDING") // PENDING, SENT, FAILED
-  message    String
+  campaignId String?
+  type       String
+  content    String
+  status     String    @default("PENDING")
   sentAt     DateTime?
-  errorMsg   String?
-  createdAt  DateTime @default(now())
-  
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  customer   Customer @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  @@index([customerId])
+  @@index([campaignId])
+  @@index([type])
+  @@index([status])
   @@map("communication_logs")
+}
+
+model CampaignLog {
+  id                String    @id @default(cuid())
+  campaignId        String
+  customerId        String
+  messageId         String?
+  message           String
+  status            String    @default("PENDING")
+  vendor            String?
+  cost              Decimal?  @db.Decimal(10, 4)
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failureReason     String?
+  webhookReceivedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  campaign          Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@index([messageId])
+  @@index([status])
+  @@map("campaign_logs")
 }
