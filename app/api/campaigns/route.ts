@@ -8,10 +8,22 @@ import { createRateLimit, API_RATE_LIMITS } from '@/lib/rate-limit'
 
 const rateLimit = createRateLimit(API_RATE_LIMITS.STANDARD)
 
+interface CampaignRule {
+  field: 'totalSpent' | 'visits' | 'lastVisit' | 'createdAt'
+  operator: '>' | '<' | '>=' | '<=' | '=' | '!=' | 'days_ago'
+  value: string | number
+}
+
+interface CampaignData {
+  name: string
+  rules: CampaignRule[]
+  message: string
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -22,7 +34,7 @@ export async function POST(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     const body = await request.json()
-    const validatedData = campaignSchema.parse(body)
+    const validatedData = campaignSchema.parse(body) as CampaignData
 
     // Calculate audience size
     const audienceSize = await calculateAudienceSize(validatedData.rules)
@@ -34,7 +46,7 @@ export async function POST(request: NextRequest) {
         rules: validatedData.rules,
         message: validatedData.message,
         audienceSize,
-        createdBy: session.user?.id,
+        createdBy: session.user.id,
         status: 'ACTIVE',
       },
     })
@@ -78,7 +90,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -97,10 +109,10 @@ export async function GET(request: NextRequest) {
       include: {
         _count: {
           select: {
-            logs: true,
+            campaignLogs: true,
           },
         },
-        logs: {
+        campaignLogs: {
           select: {
             status: true,
           },
@@ -110,7 +122,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate delivery stats for each campaign
     const campaignsWithStats = campaigns.map(campaign => {
-      const logs = campaign.logs
+      const logs = campaign.campaignLogs || []
       const sent = logs.filter(log => log.status === 'SENT').length
       const failed = logs.filter(log => log.status === 'FAILED').length
       const pending = logs.filter(log => log.status === 'PENDING').length
@@ -124,7 +136,7 @@ export async function GET(request: NextRequest) {
           total: logs.length,
           successRate: logs.length > 0 ? ((sent / logs.length) * 100).toFixed(1) : '0',
         },
-        logs: undefined, // Remove raw logs from response
+        campaignLogs: undefined, // Remove raw logs from response
       }
     })
 
@@ -143,16 +155,16 @@ export async function GET(request: NextRequest) {
         hasMore: page * limit < total,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get Campaigns Error:', error)
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch campaigns' },
+      { error: 'Failed to fetch campaigns', details: error?.message || 'Unknown error' },
       { status: 500 }
     )
   }
 }
 
-async function calculateAudienceSize(rules: any[]): Promise<number> {
+async function calculateAudienceSize(rules: CampaignRule[]): Promise<number> {
   try {
     const whereClause = buildWhereClause(rules)
     return await prisma.customer.count({ where: whereClause })
@@ -162,32 +174,32 @@ async function calculateAudienceSize(rules: any[]): Promise<number> {
   }
 }
 
-function buildWhereClause(rules: any[]): any {
+function buildWhereClause(rules: CampaignRule[]): Record<string, any> {
   if (rules.length === 0) return {}
 
-  const conditions: any[] = []
+  const conditions: Record<string, any>[] = []
 
   for (const rule of rules) {
-    let condition: any = {}
+    const condition: Record<string, any> = {}
 
     switch (rule.field) {
       case 'totalSpent':
-        condition.totalSpent = buildOperatorCondition(rule.operator, rule.value)
+        condition.totalSpent = buildOperatorCondition(rule.operator, Number(rule.value))
         break
       case 'visits':
-        condition.visits = buildOperatorCondition(rule.operator, rule.value)
+        condition.visits = buildOperatorCondition(rule.operator, Number(rule.value))
         break
       case 'lastVisit':
         if (rule.operator === 'days_ago') {
           const daysAgo = new Date()
-          daysAgo.setDate(daysAgo.getDate() - parseInt(rule.value))
+          daysAgo.setDate(daysAgo.getDate() - parseInt(String(rule.value)))
           condition.lastVisit = { lt: daysAgo }
         } else {
-          condition.lastVisit = buildOperatorCondition(rule.operator, new Date(rule.value))
+          condition.lastVisit = buildOperatorCondition(rule.operator, new Date(String(rule.value)))
         }
         break
       case 'createdAt':
-        condition.createdAt = buildOperatorCondition(rule.operator, new Date(rule.value))
+        condition.createdAt = buildOperatorCondition(rule.operator, new Date(String(rule.value)))
         break
     }
 
@@ -203,7 +215,7 @@ function buildWhereClause(rules: any[]): any {
   return { AND: conditions }
 }
 
-function buildOperatorCondition(operator: string, value: any): any {
+function buildOperatorCondition(operator: string, value: any): Record<string, any> {
   switch (operator) {
     case '>':
       return { gt: value }

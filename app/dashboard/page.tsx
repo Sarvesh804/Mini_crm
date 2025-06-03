@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Icons } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
-
+import { toast } from 'sonner'
 
 interface Campaign {
   id: string
@@ -15,13 +15,15 @@ interface Campaign {
   status: string
   sent: number
   failed: number
+  createdAt: string
 }
 
 interface Customer {
   id: string
-  name: string
+  name: string | null
   email: string
   totalSpent: number
+  createdAt: string
 }
 
 interface DashboardStats {
@@ -34,44 +36,70 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDashboardStats()
-  }, [])
+    if (status === 'authenticated') {
+      fetchDashboardStats()
+    }
+  }, [status])
 
   const fetchDashboardStats = async () => {
     try {
-      // Simulate API call - in real app, create /api/dashboard endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setStats({
-        totalCustomers: 1247,
-        totalOrders: 3456,
-        totalRevenue: 125670.50,
-        activeCampaigns: 3,
-        recentCampaigns: [
-          { id: '1', name: 'Welcome New Users', status: 'ACTIVE', sent: 120, failed: 5 },
-          { id: '2', name: 'Win-back Campaign', status: 'COMPLETED', sent: 890, failed: 12 },
-          { id: '3', name: 'Holiday Special', status: 'ACTIVE', sent: 456, failed: 8 },
-        ],
-        recentCustomers: [
-          { id: '1', name: 'John Doe', email: 'john@example.com', totalSpent: 450.00 },
-          { id: '2', name: 'Jane Smith', email: 'jane@example.com', totalSpent: 1250.00 },
-          { id: '3', name: 'Bob Johnson', email: 'bob@example.com', totalSpent: 780.00 },
-        ],
+      setIsLoading(true)
+      setError(null)
+
+      const response = await fetch('/api/dashboard', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
-    } catch (error) {
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch dashboard data')
+      }
+
+      if (result.success) {
+        setStats(result.data)
+      } else {
+        throw new Error(result.message || 'Failed to fetch dashboard data')
+      }
+    } catch (error: unknown) {
       console.error('Failed to fetch dashboard stats:', error)
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError('An unknown error occurred')
+      }
+      toast.error('Failed to load dashboard data')
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (isLoading) {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+
+  if (status === 'loading' || isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
@@ -81,7 +109,28 @@ export default function DashboardPage() {
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
           </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="h-64 bg-gray-200 rounded"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Icons.alertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={fetchDashboardStats}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -104,7 +153,6 @@ export default function DashboardPage() {
               <div>
                 <p className="text-blue-100 text-sm font-medium">Total Customers</p>
                 <p className="text-2xl font-bold">{stats?.totalCustomers.toLocaleString()}</p>
-                <p className="text-blue-100 text-xs mt-1">+12% from last month</p>
               </div>
               <Icons.users className="h-8 w-8 text-blue-200" />
             </div>
@@ -117,7 +165,6 @@ export default function DashboardPage() {
               <div>
                 <p className="text-green-100 text-sm font-medium">Total Orders</p>
                 <p className="text-2xl font-bold">{stats?.totalOrders.toLocaleString()}</p>
-                <p className="text-green-100 text-xs mt-1">+8% from last month</p>
               </div>
               <Icons.dollar className="h-8 w-8 text-green-200" />
             </div>
@@ -129,8 +176,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Total Revenue</p>
-                <p className="text-2xl font-bold">${stats?.totalRevenue.toLocaleString()}</p>
-                <p className="text-purple-100 text-xs mt-1">+15% from last month</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</p>
               </div>
               <Icons.trending className="h-8 w-8 text-purple-200" />
             </div>
@@ -143,7 +189,6 @@ export default function DashboardPage() {
               <div>
                 <p className="text-orange-100 text-sm font-medium">Active Campaigns</p>
                 <p className="text-2xl font-bold">{stats?.activeCampaigns}</p>
-                <p className="text-orange-100 text-xs mt-1">2 launching today</p>
               </div>
               <Icons.target className="h-8 w-8 text-orange-200" />
             </div>
@@ -169,22 +214,39 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats?.recentCampaigns.map((campaign) => (
-                <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{campaign.name}</h4>
-                    <div className="flex items-center gap-4 mt-1">
-                      <Badge variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                        {campaign.status}
-                      </Badge>
-                      <span className="text-sm text-gray-500">
-                        Sent: {campaign.sent} | Failed: {campaign.failed}
-                      </span>
-                    </div>
-                  </div>
-                  <Icons.chevronRight className="h-4 w-4 text-gray-400" />
+              {stats?.recentCampaigns.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Icons.target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No campaigns yet</p>
+                  <Button 
+                    className="mt-2" 
+                    size="sm"
+                    onClick={() => router.push('/dashboard/campaigns/create')}
+                  >
+                    Create Your First Campaign
+                  </Button>
                 </div>
-              ))}
+              ) : (
+                stats?.recentCampaigns.map((campaign) => (
+                  <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{campaign.name}</h4>
+                      <div className="flex items-center gap-4 mt-1">
+                        <Badge variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                          {campaign.status}
+                        </Badge>
+                        <span className="text-sm text-gray-500">
+                          Sent: {campaign.sent} | Failed: {campaign.failed}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {formatDate(campaign.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <Icons.chevronRight className="h-4 w-4 text-gray-400" />
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -206,23 +268,31 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats?.recentCustomers.map((customer) => (
-                <div key={customer.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {customer.name.split(' ').map((n: string) => n[0]).join('')}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{customer.name}</p>
-                      <p className="text-sm text-gray-500">{customer.email}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-green-600">${customer.totalSpent.toFixed(2)}</p>
-                    <p className="text-xs text-gray-500">Total spent</p>
-                  </div>
+              {stats?.recentCustomers.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Icons.users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No customers yet</p>
                 </div>
-              ))}
+              ) : (
+                stats?.recentCustomers.map((customer) => (
+                  <div key={customer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                        {customer.name ? customer.name.split(' ').map((n: string) => n[0]).join('') : customer.email[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{customer.name || 'No Name'}</p>
+                        <p className="text-sm text-gray-500">{customer.email}</p>
+                        <p className="text-xs text-gray-400">{formatDate(customer.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-green-600">{formatCurrency(customer.totalSpent)}</p>
+                      <p className="text-xs text-gray-500">Total spent</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

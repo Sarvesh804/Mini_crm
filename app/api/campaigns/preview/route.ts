@@ -98,7 +98,7 @@ function buildWhereClause(rules: any[]): any {
   const conditions: any[] = []
 
   for (const rule of rules) {
-    let condition: any = {}
+    const condition: any = {}
 
     switch (rule.field) {
       case 'totalSpent':

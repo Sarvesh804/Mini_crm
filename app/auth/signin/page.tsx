@@ -1,12 +1,13 @@
+'use client'
+
 import { Suspense } from 'react'
-import { getServerSession } from 'next-auth/next'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
 import { SignInForm } from '@/components/signInForm'
 import { Toaster } from '@/components/ui/sonner'
+import { useSession } from 'next-auth/react'
 
-export default async function SignInPage() {
-  const session = await getServerSession(authOptions)
+export default function SignInPage() {
+  const {data:session} = useSession()
 
   if (session) {
     redirect('/dashboard')

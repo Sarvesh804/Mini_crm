@@ -18,7 +18,7 @@ const navigation = [
   },
   {
     name: 'Customers',
-    href: '/dashboard/customers',
+    href: '/dashboard/customer',
     icon: Icons.users,
   },
   {
@@ -48,6 +48,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -56,10 +57,12 @@ export default function DashboardLayout({
     )
   }
 
-  if (!session) {
+  if(!session){
     router.push('/auth/signin')
     return null
   }
+
+  console.log('Session:', session)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -133,7 +136,7 @@ export default function DashboardLayout({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={() => signOut({ callbackUrl: '/auth/signin' })}
                   className="text-red-600 focus:text-red-600"
                 >
                   <Icons.logout className="mr-2 h-4 w-4" />
